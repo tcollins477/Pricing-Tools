@@ -11,12 +11,90 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r Yahoo}
 # Fetch historical price data for a specific futures contract
 
+# Install and load required packages
+if (!requireNamespace("quantmod", quietly = TRUE)) {
+  install.packages("quantmod")
+}
+library(quantmod)
 
+# Define the symbol and date range
+symbol <- "BZN24.NYM"  # Crude Oil Futures for December 2024 on NYMEX
+date_end <- Sys.Date()  # End date is today
+date_start <- as.Date(date_end) - 365  # Start date is one year ago
 
+# Fetch historical futures data from Yahoo Finance
+futures_data <- getSymbols(Symbols = symbol, src = "yahoo", from = date_start, to = date_end, auto.assign = FALSE)
+
+# Assign the fetched data to a variable with the ticker symbol as the name
+assign(symbol, futures_data)
+
+# Display the data
+print(get(symbol))
 
 
 ```
 
+
+```{r Cont_Contract using Tidyquant package}
+# This version fetches historical price data from Yahoo useing the tidyquant 
+# package in R, which provides a convenient wrapper around quantmod 
+
+# Install and load required packages
+if (!requireNamespace("tidyquant", quietly = TRUE)) {
+  install.packages("tidyquant")
+}
+library(tidyquant)
+
+# Define the symbol and date range
+symbol <- "CL=F"  # Crude Oil Futures (Continuous Contract) on Yahoo Finance
+date_end <- Sys.Date()  # End date is today
+date_start <- as.Date(date_end) - 365  # Start date is one year ago
+
+# Fetch historical futures data from Yahoo Finance
+futures_data <- tq_get(symbol, from = date_start, to = date_end, get = "stock.prices")
+
+# Assign the fetched data to a variable named after the ticker symbol, replacing invalid characters
+symbol_name <- gsub("=", "_", symbol)
+assign(symbol_name, futures_data)
+
+# Display the data
+print(get(symbol_name))
+
+
+```
+
+
+```{r Single Ticker Alpha Vantage}
+# This does NOT currently work
+
+# Install and load required packages
+if (!requireNamespace("alphavantager", quietly = TRUE)) {
+  install.packages("alphavantager")
+}
+library(alphavantager)
+
+
+# Set your Alpha Vantage API key
+av_api_key("YC7JCIMJVKG8EMHI")  # Replace with your actual API key
+
+
+# Define the symbol, start date, and end date
+symbol <- "CLZ24"  # Replace with your futures contract symbol
+date_start <- "2024-01-01"  # Define your start date
+date_end <- "2024-06-01"  # Define your end date
+
+# Fetch historical futures data from Alpha Vantage
+futures_data <- av_get(symbol, av_fun = "TIME_SERIES_DAILY", outputsize = "full")
+
+# Filter data for the specified date range
+futures_data <- futures_data[as.Date(futures_data$timestamp) >= as.Date(date_start) & 
+                             as.Date(futures_data$timestamp) <= as.Date(date_end), ]
+
+# Display the data
+print(futures_data)
+
+
+```
 
 
 
