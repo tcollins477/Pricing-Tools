@@ -8,6 +8,7 @@ date: "2024-06-26"
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+## Getting Data
 ```{r Yahoo}
 # Fetch historical price data for a specific futures contract
 
@@ -18,7 +19,7 @@ if (!requireNamespace("quantmod", quietly = TRUE)) {
 library(quantmod)
 
 # Define the symbol and date range
-symbol <- "BZN24.NYM"  # Crude Oil Futures for December 2024 on NYMEX
+symbol <- "KCZ24.NYB"  # Crude Oil Futures for December 2024 on NYMEX
 date_end <- Sys.Date()  # End date is today
 date_start <- as.Date(date_end) - 365  # Start date is one year ago
 
@@ -34,38 +35,8 @@ print(get(symbol))
 
 ```
 
-
-```{r Cont_Contract using Tidyquant package}
-# This version fetches historical price data from Yahoo useing the tidyquant 
-# package in R, which provides a convenient wrapper around quantmod 
-
-# Install and load required packages
-if (!requireNamespace("tidyquant", quietly = TRUE)) {
-  install.packages("tidyquant")
-}
-library(tidyquant)
-
-# Define the symbol and date range
-symbol <- "CL=F"  # Crude Oil Futures (Continuous Contract) on Yahoo Finance
-date_end <- Sys.Date()  # End date is today
-date_start <- as.Date(date_end) - 365  # Start date is one year ago
-
-# Fetch historical futures data from Yahoo Finance
-futures_data <- tq_get(symbol, from = date_start, to = date_end, get = "stock.prices")
-
-# Assign the fetched data to a variable named after the ticker symbol, replacing invalid characters
-symbol_name <- gsub("=", "_", symbol)
-assign(symbol_name, futures_data)
-
-# Display the data
-print(get(symbol_name))
-
-
-```
-
-
 ```{r Single Ticker Alpha Vantage}
-# This does NOT currently work
+# * * * * This does NOT currently work * * * *
 
 # Install and load required packages
 if (!requireNamespace("alphavantager", quietly = TRUE)) {
@@ -93,8 +64,100 @@ futures_data <- futures_data[as.Date(futures_data$timestamp) >= as.Date(date_sta
 # Display the data
 print(futures_data)
 
+```
+
+```{r Cont_Contract using Tidyquant package}
+# This version fetches historical price data from Yahoo useing the tidyquant 
+# package in R, which provides a convenient wrapper around quantmod 
+
+# Install and load required packages
+if (!requireNamespace("tidyquant", quietly = TRUE)) {
+  install.packages("tidyquant")
+}
+library(tidyquant)
+
+# Define the symbol and date range
+symbol <- "CL=F"  # Crude Oil Futures (Continuous Contract) on Yahoo Finance
+date_end <- Sys.Date()  # End date is today
+date_start <- as.Date(date_end) - 365  # Start date is one year ago
+
+# Fetch historical futures data from Yahoo Finance
+futures_data <- tq_get(symbol, from = date_start, to = date_end, get = "stock.prices")
+
+# Assign the fetched data to a variable named after the ticker symbol, replacing invalid characters
+symbol_name <- gsub("=", "_", symbol)
+assign(symbol_name, futures_data)
+
+# Display the data
+print(get(symbol_name))
 
 ```
+
+## Charting
+```{r Charting 1 security}
+
+# Set dates
+date_end_EQ <- Sys.Date()  # End date is today
+date_start_EQ <- as.Date(date_end) - 2*365  # Start date is one year ago
+
+# Fetch Data
+getSymbols(c("GOOG","AAPL","MSFT"), src = "yahoo", from = date_start_EQ, to = date_end_EQ, auto.assign = TRUE)
+
+# Chart
+chartSeries(AAPL,
+            type="line",
+            # subset='2024',
+            theme=chartTheme('white'))
+
+# Add SMAs
+# addSMA(n=30,on=1,col = "blue")
+# addSMA(n=200,on=1,col = "red")
+
+# Add EMA (Exponential Moving Average)
+# addEMA(n=30,on=1,col = "orange")
+
+# Add Bollinger Bands
+# addBBands(n=20,sd=2)
+
+# Add Momentum
+# addMomentum(n=1)
+
+# Add ROC (Rate of Change)
+# addROC(n=7)
+
+# Add MACD (Moving Average Converge Diverge)
+# addMACD(fast=12,slow=26,signal=9,type="EMA")
+
+# Add RSI (Relative Strength Indicator)
+addRSI(n=14,maType="EMA")
+
+```
+
+```{r charting 2 securities}
+
+# Set dates
+date_end_EQ <- Sys.Date()  # End date is today
+date_start_EQ <- as.Date(date_end) - 2*365  # Start date is one year ago
+
+# Fetch Data
+getSymbols(c("GOOG","AAPL","MSFT"), src = "yahoo", from = date_start_EQ, to = date_end_EQ, auto.assign = TRUE)
+
+# To compare prices fo different stocks, we need to calculat the price change:
+NS <- function(xdat) xdat / coredata(xdat)[1]
+a <- NS(Cl(AAPL))-1
+g <- NS(Cl(GOOG))-1
+m <- NS(Cl(MSFT))-1
+chartSeries(a,
+            # subset = '2024',
+            theme=chartTheme('white'))
+
+addTA(g, on=1, col="red", lty="dotted")
+addTA(m, on=1, col="blue", lty="dashed")
+# The option lty is to make the line becomes other line styles where dotted means dotted line and dashed means dashed line.
+
+```
+
+
 
 
 
