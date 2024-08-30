@@ -1,0 +1,285 @@
+---
+title: "LPC Stock Analysis"
+author: "TJC"
+date: "2024-08-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Step 1: Install and Load Required Packages
+
+```{r Libraries}
+
+# Install libraries
+# install.packages("quantmod")
+# install.packages("tidyverse")
+
+# Load the required libraries
+library(quantmod)
+library(tidyverse)
+
+```
+
+Step 2: Define the Stock Symbols and Date Range
+
+```{r Get Prices}
+
+# Set the end date to today's date
+end_date <- Sys.Date()
+# Calculate the start date as 365 days before the end date
+start_date <- end_date - 365
+
+# Define stock symbols
+symbols <- c("FFIDX", "FFRHX", "FLCSX", "FPHAX", "FSENX", "FSPSX", "FSPTX", "FTQGX", "FWWFX", "FXAIX")
+
+# Download historical prices
+getSymbols(symbols, src = "yahoo", from = start_date, to = end_date, auto.assign = TRUE)
+
+# Extract closing prices and combine into a single data frame
+closing_prices <- do.call(merge, lapply(symbols, function(sym) Cl(get(sym))))
+colnames(closing_prices) <- symbols
+
+
+# Correlation on Adjusted Close
+# Combine adjusted closing prices into a single data frame
+data <- do.call(merge, lapply(symbols, function(x) Ad(get(x))))
+
+# Remove any rows with missing data
+data <- na.omit(data)
+
+# Calculate the correlation matrix
+cor_matrix <- cor(data)
+
+```
+
+Heatmap Visualization of Correlation:
+```{r Heatmap}
+
+library(quantmod)
+library(ggplot2)
+# install.packages("reshape2")
+library(reshape2)
+
+# Assuming `cor_matrix` is your correlation matrix
+cor_matrix <- cor(data)
+
+# Melt the correlation matrix for ggplot
+melted_cor_matrix <- melt(cor_matrix)
+
+# Plotting the heatmap
+ggplot(data = melted_cor_matrix, aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1, 1), space = "Lab", 
+                       name="Correlation") +
+  theme_minimal() + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+                                   size = 12, hjust = 1)) +
+  coord_fixed()
+
+
+```
+
+Clustered Heatmap
+```{r Clustered Heatmap}
+
+# install.packages("pheatmap")
+library(pheatmap)
+
+# Create a clustered heatmap
+pheatmap(cor_matrix, 
+         clustering_distance_rows = "euclidean", 
+         clustering_distance_cols = "euclidean",
+         clustering_method = "complete")
+
+
+```
+
+Network Graph:
+```{r Network Graph}
+
+# install.packages("igraph")
+library(igraph)
+
+# Create a correlation matrix
+cor_matrix <- cor(data)
+
+# Set a threshold
+threshold <- 0.7
+cor_matrix[abs(cor_matrix) < threshold] <- 0
+
+# Convert the matrix to a graph object
+graph <- graph.adjacency(cor_matrix, mode = "undirected", weighted = TRUE, diag = FALSE)
+
+# Plot the network graph
+plot(graph, vertex.size = 5, vertex.label.cex = 0.7, edge.width = E(graph)$weight*2)
+
+
+```
+
+Table of Top Correlations:
+```{r Table of Top Correlations}
+
+# Convert the correlation matrix to a data frame
+cor_df <- as.data.frame(as.table(cor_matrix))
+
+# Filter out duplicate pairs and self-correlations
+cor_df <- cor_df[cor_df$Var1 != cor_df$Var2, ]
+cor_df <- cor_df[!duplicated(t(apply(cor_df, 1, sort))), ]
+
+# Sort by absolute value of correlation
+top_correlations <- cor_df[order(-abs(cor_df$Freq)), ]
+
+# Show the top N correlations
+head(top_correlations, n = 20)
+
+
+```
+
+Interactive Visualization (Shiny):
+```{r Interactive Visualization (Shiny)}
+
+# update.packages(ask = FALSE)
+
+# install.packages("shiny")
+library(shiny)
+# install.packages("ggplot2")
+library(ggplot2)
+# install.packages("fastmap")
+library(fastmap)
+# install.packages("bslib")
+library(bslib)
+library(quantmod)
+library(ggplot2)
+library(reshape2)
+
+# install.packages("remotes")
+library(remotes)
+remotes::install_version("fastmap", version = "1.2.0")
+
+detach(package:fastmap)
+
+# Basic Shiny app skeleton
+ui <- fluidPage(
+  titlePanel("Correlation Heatmap"),
+  sidebarLayout(
+    sidebarPanel(
+      sliderInput("corThreshold", "Correlation Threshold:", 
+                  min = 0, max = 1, value = 0.7)
+    ),
+    mainPanel(
+      plotOutput("heatmapPlot")
+    )
+  )
+)
+
+server <- function(input, output) {
+  output$heatmapPlot <- renderPlot({
+    thresholded_matrix <- cor_matrix
+    thresholded_matrix[abs(thresholded_matrix) < input$corThreshold] <- 0
+    
+    # Use ggplot to create a heatmap
+    melted_cor_matrix <- melt(thresholded_matrix)
+    ggplot(data = melted_cor_matrix, aes(Var1, Var2, fill = value)) +
+      geom_tile() +
+      scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                           midpoint = 0, limit = c(-1, 1), space = "Lab", 
+                           name="Correlation") +
+      theme_minimal() + 
+      theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+                                       size = 12, hjust = 1)) +
+      coord_fixed()
+  })
+}
+
+shinyApp(ui, server)
+
+
+```
+
+
+
+
+
+
+Step 3: Calculate Other Statistical Measurements
+
+```{r Calculate Stats}
+
+# Convert xts object to data frame
+closing_prices_df <- as.data.frame(closing_prices)
+
+# Calculate statistics for each stock
+stats <- closing_prices_df %>%
+  summarise_all(list(mean = ~mean(.), sd = ~sd(.), min = ~min(.), max = ~max(.)))
+
+print(stats)
+
+
+# Calculate the correlation matrix
+cor_matrix <- cor(closing_prices, use = "complete.obs")
+print(cor_matrix)
+
+```
+
+
+
+
+
+
+Additional Statistics
+```{r}
+
+# Install and load the moments package for skewness and kurtosis
+install.packages("moments")
+library(moments)
+
+# Convert xts object to data frame
+closing_prices_df <- as.data.frame(closing_prices)
+
+# Calculate additional statistics for each stock
+stats <- closing_prices_df %>%
+  summarise_all(list(
+    mean = ~mean(.),
+    median = ~median(.),
+    sd = ~sd(.),
+    min = ~min(.),
+    max = ~max(.),
+    range = ~diff(range(.)),
+    skewness = ~skewness(.),
+    kurtosis = ~kurtosis(.),
+    Q1 = ~quantile(., 0.25),
+    Q3 = ~quantile(., 0.75)
+  ))
+
+print(stats)
+
+
+```
+
+
+
+Step 4: Generate a Comprehensive Report
+
+```{r Report}
+
+---
+title: "Stock Analysis Report"
+author: "Your Name"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(quantmod)
+library(tidyverse)
+# Your previous code goes here
+
+
+```
+
+
+
